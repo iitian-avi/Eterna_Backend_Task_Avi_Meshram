@@ -31,7 +31,8 @@ export async function registerRoutes(fastify: FastifyInstance) {
   fastify.get('/health', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       // Check Redis connection
-      const redisHealthy = await redisCache.getClient().ping() === 'PONG';
+      const redisClient = redisCache.getClient();
+      const redisHealthy = redisClient ? await redisClient.ping() === 'PONG' : false;
       
       // Check PostgreSQL connection
       const pgHealthy = await orderRepo.healthCheck();
@@ -39,13 +40,13 @@ export async function registerRoutes(fastify: FastifyInstance) {
       // Check queue status (simple check - queue object exists)
       const queueHealthy = orderQueue !== null && orderQueue !== undefined;
 
-      const allHealthy = redisHealthy && pgHealthy && queueHealthy;
+      const allHealthy = pgHealthy && queueHealthy;
 
       return reply.code(allHealthy ? 200 : 503).send({
         status: allHealthy ? 'ok' : 'degraded',
         timestamp: Date.now(),
         services: {
-          redis: redisHealthy ? 'connected' : 'disconnected',
+          redis: redisHealthy ? 'connected' : 'unavailable (using in-memory)',
           postgres: pgHealthy ? 'connected' : 'disconnected',
           queue: queueHealthy ? 'active' : 'inactive'
         }
