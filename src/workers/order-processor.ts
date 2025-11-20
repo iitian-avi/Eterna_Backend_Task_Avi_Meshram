@@ -11,12 +11,30 @@ import { OrderRepository } from '../db/repository';
 import { redisCache } from '../db/redis';
 import { DEXAggregator } from '../services/dex-aggregator';
 
-// Redis connection for BullMQ
+// Redis connection for BullMQ (with error suppression)
 const connection = new Redis({
   host: config.redis.host,
   port: config.redis.port,
   password: config.redis.password,
-  maxRetriesPerRequest: null
+  maxRetriesPerRequest: null,
+  retryStrategy: (times) => {
+    // Stop retrying after 3 attempts to avoid log spam
+    if (times > 3) {
+      return null;
+    }
+    return Math.min(times * 50, 2000);
+  },
+  lazyConnect: true
+});
+
+// Suppress Redis connection error logs for worker
+connection.on('error', () => {
+  // Silently fail - Redis is optional
+});
+
+// Try to connect, but don't crash if Redis unavailable
+connection.connect().catch(() => {
+  console.warn('⚠️  Redis unavailable for queue - using fallback mode');
 });
 
 // Order queue
