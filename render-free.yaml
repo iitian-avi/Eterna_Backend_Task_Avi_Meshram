@@ -1,0 +1,75 @@
+# Render.com FREE Tier Deployment
+# This version uses external free Redis instead of Render's paid Redis
+
+services:
+  # Main Web Service (FREE)
+  - type: web
+    name: solana-dex-bot-free
+    env: node
+    region: oregon
+    plan: free  # FREE TIER
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: HOST
+        value: 0.0.0.0
+      
+      # Redis - Use free external service
+      # Get free Redis from: https://upstash.com (10,000 commands/day free)
+      - key: REDIS_HOST
+        sync: false  # You'll add this manually
+      - key: REDIS_PORT
+        sync: false
+      - key: REDIS_PASSWORD
+        sync: false
+      
+      # PostgreSQL (FREE from Render)
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: solana-dex-db-free
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: solana-dex-db-free
+          property: port
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: solana-dex-db-free
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: solana-dex-db-free
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: solana-dex-db-free
+          property: password
+      
+      # Solana RPC (FREE public endpoint)
+      - key: SOLANA_RPC_URL
+        value: https://api.mainnet-beta.solana.com
+      - key: SOLANA_WS_URL
+        value: wss://api.mainnet-beta.solana.com
+      
+      # Performance settings
+      - key: MAX_CONCURRENT_ORDERS
+        value: 5  # Reduced for free tier
+      - key: MAX_ORDERS_PER_MINUTE
+        value: 50  # Reduced for free tier
+      - key: MAX_RETRY_ATTEMPTS
+        value: 3
+      - key: RETRY_BACKOFF_MS
+        value: 1000
+
+databases:
+  # PostgreSQL Database (FREE - 1GB storage)
+  - name: solana-dex-db-free
+    region: oregon
+    plan: free  # FREE TIER
+    databaseName: solana_dex_bot
+    postgresMajorVersion: 15
