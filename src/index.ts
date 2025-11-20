@@ -46,13 +46,16 @@ async function start() {
       host: config.server.host
     });
 
+    const displayHost = config.server.host === '0.0.0.0' ? 'localhost' : config.server.host;
+    
     console.log('\n✅ Server ready!');
-    console.log(`   - HTTP Server: http://${config.server.host}:${config.server.port}`);
-    console.log(`   - WebSocket: ws://${config.server.host}:${config.server.port}/ws/orders/:orderId`);
+    console.log(`   - HTTP Server: http://${displayHost}:${config.server.port}`);
+    console.log(`   - WebSocket: ws://${displayHost}:${config.server.port}/ws/orders/:orderId`);
+    console.log(`   - Listening on: ${config.server.host}:${config.server.port} (all interfaces)`);
     console.log(`   - Environment: ${config.server.env}`);
     console.log(`   - Solana RPC: ${config.solana.rpcUrl}`);
     console.log('\n📋 Available endpoints:');
-    console.log('   POST   /api/orders          - Create new order');
+    console.log('   POST   /api/orders/execute  - Create new order');
     console.log('   GET    /api/orders/:id      - Get order details');
     console.log('   GET    /ws/orders/:id       - WebSocket status stream');
     console.log('   GET    /health              - Health check');

@@ -101,6 +101,7 @@ export interface CreateOrderResponse {
   orderId: string;
   status: OrderStatus;
   message: string;
+  websocketUrl?: string;     // Optional WebSocket URL for connecting
 }
 
 /**

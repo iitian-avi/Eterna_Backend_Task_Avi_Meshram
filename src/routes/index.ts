@@ -4,6 +4,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { v4 as uuidv4 } from 'uuid';
+import config from '../config';
 import { orderQueue } from '../workers/order-processor';
 import { OrderRepository } from '../db/repository';
 import { redisCache } from '../db/redis';
@@ -146,11 +147,18 @@ export async function registerRoutes(fastify: FastifyInstance) {
 
         console.log(`[API] Order ${orderId} created and queued`);
 
+        // Generate WebSocket URL based on request
+        const protocol = request.headers['x-forwarded-proto'] || (request.protocol || 'http');
+        const wsProtocol = protocol === 'https' ? 'wss' : 'ws';
+        const host = request.headers['x-forwarded-host'] || request.headers.host || `${config.server.host}:${config.server.port}`;
+        const websocketUrl = `${wsProtocol}://${host}/ws/orders/${orderId}`;
+
         // Return orderId immediately
         const response: CreateOrderResponse = {
           orderId,
           status: OrderStatus.PENDING,
-          message: 'Order created. Connect to WebSocket for status updates.'
+          message: 'Order created. Connect to WebSocket for real-time updates.',
+          websocketUrl
         };
 
         return reply.code(201).send({
