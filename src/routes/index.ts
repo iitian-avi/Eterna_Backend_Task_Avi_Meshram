@@ -293,19 +293,6 @@ export async function registerRoutes(fastify: FastifyInstance) {
       });
     }
   );
-
-  /**
-   * Health check
-   */
-  fastify.get('/health', async (request, reply) => {
-    return {
-      success: true,
-      data: {
-        status: 'healthy',
-        timestamp: new Date().toISOString()
-      }
-    };
-  });
 }
 
 /**
