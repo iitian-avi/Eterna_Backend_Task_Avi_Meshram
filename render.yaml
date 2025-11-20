@@ -83,5 +83,4 @@ databases:
     region: oregon
     plan: starter
     databaseName: solana_dex_bot
-    user: postgres
     postgresMajorVersion: 15
