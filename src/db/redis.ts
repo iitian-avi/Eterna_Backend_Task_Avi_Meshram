@@ -159,6 +159,13 @@ export class RedisCache {
   }
 
   /**
+   * Get Redis client for health checks
+   */
+  getClient(): Redis {
+    return this.redis;
+  }
+
+  /**
    * Get order cache key
    */
   private getOrderKey(orderId: string): string {

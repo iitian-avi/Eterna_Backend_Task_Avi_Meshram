@@ -158,6 +158,19 @@ export class OrderRepository {
   }
 
   /**
+   * Health check - verify database connection
+   */
+  async healthCheck(): Promise<boolean> {
+    try {
+      const result = await pool.query('SELECT 1');
+      return result.rows.length === 1;
+    } catch (error) {
+      console.error('PostgreSQL health check failed:', error);
+      return false;
+    }
+  }
+
+  /**
    * Map database row to Order object
    */
   private mapRowToOrder(row: any): Order {

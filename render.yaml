@@ -1,0 +1,87 @@
+# Render.com Blueprint
+# Deploy with: https://render.com/
+
+services:
+  # Main Web Service
+  - type: web
+    name: solana-dex-bot
+    env: node
+    region: oregon
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: node dist/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: HOST
+        value: 0.0.0.0
+      
+      # Redis (use Render Redis or external)
+      - key: REDIS_HOST
+        fromService:
+          type: redis
+          name: solana-dex-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: redis
+          name: solana-dex-redis
+          property: port
+      
+      # PostgreSQL (use Render PostgreSQL)
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: solana-dex-db
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: solana-dex-db
+          property: port
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: solana-dex-db
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: solana-dex-db
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: solana-dex-db
+          property: password
+      
+      # Solana RPC (use paid RPC for production)
+      - key: SOLANA_RPC_URL
+        sync: false
+      - key: SOLANA_WS_URL
+        sync: false
+      
+      # Performance settings
+      - key: MAX_CONCURRENT_ORDERS
+        value: 10
+      - key: MAX_ORDERS_PER_MINUTE
+        value: 100
+      - key: MAX_RETRY_ATTEMPTS
+        value: 3
+      - key: RETRY_BACKOFF_MS
+        value: 1000
+
+  # Redis Instance
+  - type: redis
+    name: solana-dex-redis
+    region: oregon
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+
+databases:
+  # PostgreSQL Database
+  - name: solana-dex-db
+    region: oregon
+    plan: starter
+    databaseName: solana_dex_bot
+    user: postgres
+    postgresMajorVersion: 15

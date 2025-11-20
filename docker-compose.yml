@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # Redis for queue and caching
+  redis:
+    image: redis:7-alpine
+    container_name: solana-dex-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL for order history
+  postgres:
+    image: postgres:15-alpine
+    container_name: solana-dex-postgres
+    environment:
+      POSTGRES_DB: solana_dex_bot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password_change_me
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./src/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Main application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: solana-dex-bot
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOST: 0.0.0.0
+      
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      
+      # PostgreSQL
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: solana_dex_bot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_password_change_me
+      
+      # Solana (use your RPC endpoint)
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL:-https://api.mainnet-beta.solana.com}
+      SOLANA_WS_URL: ${SOLANA_WS_URL:-wss://api.mainnet-beta.solana.com}
+      
+      # Performance
+      MAX_CONCURRENT_ORDERS: 10
+      MAX_ORDERS_PER_MINUTE: 100
+      MAX_RETRY_ATTEMPTS: 3
+      RETRY_BACKOFF_MS: 1000
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis-data:
+  postgres-data:

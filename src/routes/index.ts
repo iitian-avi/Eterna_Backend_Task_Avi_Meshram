@@ -24,6 +24,41 @@ const wsConnections = new Map<string, Set<any>>();
 
 export async function registerRoutes(fastify: FastifyInstance) {
   /**
+   * GET /health
+   * Health check endpoint for monitoring and load balancers
+   */
+  fastify.get('/health', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      // Check Redis connection
+      const redisHealthy = await redisCache.getClient().ping() === 'PONG';
+      
+      // Check PostgreSQL connection
+      const pgHealthy = await orderRepo.healthCheck();
+      
+      // Check queue status (simple check - queue object exists)
+      const queueHealthy = orderQueue !== null && orderQueue !== undefined;
+
+      const allHealthy = redisHealthy && pgHealthy && queueHealthy;
+
+      return reply.code(allHealthy ? 200 : 503).send({
+        status: allHealthy ? 'ok' : 'degraded',
+        timestamp: Date.now(),
+        services: {
+          redis: redisHealthy ? 'connected' : 'disconnected',
+          postgres: pgHealthy ? 'connected' : 'disconnected',
+          queue: queueHealthy ? 'active' : 'inactive'
+        }
+      });
+    } catch (error) {
+      return reply.code(503).send({
+        status: 'error',
+        timestamp: Date.now(),
+        error: 'Health check failed'
+      });
+    }
+  });
+
+  /**
    * POST /api/orders/execute
    * Create and execute a new order
    * Returns orderId and WebSocket URL for status streaming
