@@ -1,9 +1,8 @@
 # Dependencies
 node_modules/
 npm-debug.log*
-package-lock.json
 
-# Build output
+# Build output (will be created during build)
 dist/
 
 # Environment variables
