@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebSocket Connection Test</title>
+  <style>
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 40px; 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .container { 
+      max-width: 800px; 
+      margin: 0 auto; 
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    button { 
+      padding: 12px 24px; 
+      margin: 10px 5px; 
+      cursor: pointer; 
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .status { 
+      padding: 20px; 
+      margin: 15px 0; 
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.2);
+      font-family: 'Courier New', monospace;
+    }
+    .success { border-left: 4px solid #4ade80; }
+    .error { border-left: 4px solid #f87171; }
+    .info { border-left: 4px solid #60a5fa; }
+    .warning { border-left: 4px solid #fbbf24; }
+    input { 
+      padding: 10px; 
+      width: 300px; 
+      margin: 10px 5px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #333;
+      font-size: 14px;
+    }
+    .log {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 20px;
+      border-radius: 8px;
+      max-height: 400px;
+      overflow-y: auto;
+      margin: 20px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    .timestamp {
+      color: #a3a3a3;
+      margin-right: 10px;
+    }
+    h1 { margin-top: 0; }
+    .indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+      animation: pulse 2s infinite;
+    }
+    .connected { background: #4ade80; }
+    .disconnected { background: #f87171; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔌 WebSocket Connection Test</h1>
+    
+    <div class="status info">
+      <strong>Status:</strong> 
+      <span class="indicator disconnected" id="indicator"></span>
+      <span id="connectionStatus">Not connected</span>
+    </div>
+    
+    <div>
+      <h3>1. Test WebSocket Endpoint</h3>
+      <input id="orderId" type="text" value="test-order-123" placeholder="Order ID">
+      <button onclick="connectWS()" id="connectBtn">Connect WebSocket</button>
+      <button onclick="disconnectWS()" id="disconnectBtn" disabled>Disconnect</button>
+    </div>
+    
+    <div>
+      <h3>2. Send Test Message</h3>
+      <button onclick="sendTestMessage()" id="sendBtn" disabled>Send Test Message</button>
+      <button onclick="simulateOrderFlow()" id="simulateBtn" disabled>Simulate Order Flow</button>
+    </div>
+    
+    <div>
+      <h3>3. Live Messages</h3>
+      <div id="log" class="log">
+        <div class="timestamp">Waiting for connection...</div>
+      </div>
+    </div>
+    
+    <div class="status warning">
+      <strong>Note:</strong> This tests if the WebSocket server is accepting connections.
+      Full order flow updates require Redis to be running.
+    </div>
+  </div>
+
+  <script>
+    let ws = null;
+    const log = document.getElementById('log');
+    const indicator = document.getElementById('indicator');
+    const statusText = document.getElementById('connectionStatus');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    const simulateBtn = document.getElementById('simulateBtn');
+
+    function addLog(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = type;
+      entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+      log.appendChild(entry);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function updateStatus(connected) {
+      if (connected) {
+        indicator.className = 'indicator connected';
+        statusText.textContent = 'Connected ✓';
+        connectBtn.disabled = true;
+        disconnectBtn.disabled = false;
+        sendBtn.disabled = false;
+        simulateBtn.disabled = false;
+      } else {
+        indicator.className = 'indicator disconnected';
+        statusText.textContent = 'Disconnected';
+        connectBtn.disabled = false;
+        disconnectBtn.disabled = true;
+        sendBtn.disabled = true;
+        simulateBtn.disabled = true;
+      }
+    }
+
+    function connectWS() {
+      const orderId = document.getElementById('orderId').value;
+      
+      if (!orderId) {
+        addLog('❌ Please enter an Order ID', 'error');
+        return;
+      }
+
+      addLog(`🔌 Connecting to ws://localhost:3000/ws/orders/${orderId}...`, 'info');
+      
+      try {
+        ws = new WebSocket(`ws://localhost:3000/ws/orders/${orderId}`);
+
+        ws.onopen = () => {
+          addLog('✅ WebSocket connected successfully!', 'success');
+          updateStatus(true);
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            addLog(`📨 Received: <pre>${JSON.stringify(data, null, 2)}</pre>`, 'success');
+          } catch (e) {
+            addLog(`📨 Received: ${event.data}`, 'success');
+          }
+        };
+
+        ws.onerror = (error) => {
+          addLog(`❌ WebSocket error: ${error.message || 'Connection failed'}`, 'error');
+          addLog('💡 Make sure the server is running: npm run dev', 'warning');
+        };
+
+        ws.onclose = () => {
+          addLog('🔌 WebSocket disconnected', 'warning');
+          updateStatus(false);
+          ws = null;
+        };
+      } catch (error) {
+        addLog(`❌ Failed to connect: ${error.message}`, 'error');
+      }
+    }
+
+    function disconnectWS() {
+      if (ws) {
+        ws.close();
+        addLog('🔌 Disconnecting...', 'info');
+      }
+    }
+
+    function sendTestMessage() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        addLog('❌ WebSocket not connected', 'error');
+        return;
+      }
+
+      const testMessage = {
+        type: 'TEST',
+        message: 'Hello from client',
+        timestamp: Date.now()
+      };
+
+      ws.send(JSON.stringify(testMessage));
+      addLog(`📤 Sent test message: ${JSON.stringify(testMessage)}`, 'info');
+    }
+
+    function simulateOrderFlow() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        addLog('❌ WebSocket not connected', 'error');
+        return;
+      }
+
+      addLog('🎬 Simulating order flow...', 'info');
+      addLog('💡 In production, these messages would come from the server via Redis pub/sub', 'warning');
+
+      const statuses = [
+        { status: 'pending', message: 'Order received and queued', delay: 0 },
+        { status: 'routing', message: 'Comparing DEX prices', delay: 1000 },
+        { status: 'building', message: 'Building transaction', delay: 3000 },
+        { status: 'submitted', message: 'Transaction submitted', delay: 4000 },
+        { status: 'confirmed', message: 'Order completed', delay: 6000 }
+      ];
+
+      statuses.forEach(({ status, message, delay }) => {
+        setTimeout(() => {
+          addLog(`📊 Order Status: <strong>${status}</strong> - ${message}`, 'success');
+        }, delay);
+      });
+    }
+
+    // Auto-connect on page load if server is likely running
+    window.addEventListener('load', () => {
+      addLog('👋 WebSocket test page loaded', 'info');
+      addLog('💡 Click "Connect WebSocket" to test the connection', 'info');
+    });
+  </script>
+</body>
+</html>
