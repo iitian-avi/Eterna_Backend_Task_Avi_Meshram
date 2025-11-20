@@ -5,7 +5,12 @@
 import { Pool } from 'pg';
 import config from '../config';
 
-export const pool = new Pool(config.postgres);
+// Support both individual config and DATABASE_URL
+const poolConfig = process.env.DATABASE_URL 
+  ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }
+  : config.postgres;
+
+export const pool = new Pool(poolConfig);
 
 /**
  * Initialize database schema
